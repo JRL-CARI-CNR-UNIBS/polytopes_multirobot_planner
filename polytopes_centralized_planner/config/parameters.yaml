@@ -1,0 +1,59 @@
+/centralized_planner_node:
+  ros__parameters:
+    polytope_motion_planning:
+      robots:
+        robot_to_load:
+          - "robot_1"
+          - "robot_2"
+        base_names:
+          - "sweepee_1/base_footprint"
+          - "sweepee_2/base_footprint"
+        vertices:
+          robot_1:
+            n_points: 4
+            p1: [-0.5, -0.25, 0.0]
+            p2: [-0.5, 0.25, 0.0]
+            p3: [0.5, 0.25, 0.0]
+            p4: [0.5, -0.25, 0.0]
+          robot_2:
+            n_points: 4
+            p1: [-0.5, -0.25, 0.0]
+            p2: [-0.5, 0.25, 0.0]
+            p3: [0.5, 0.25, 0.0]
+            p4: [0.5, -0.25, 0.0]
+
+      bounds:
+        pose:
+          x: [0, 5]
+          y: [0, 5]
+          theta: [-1.57079632679489661923132, 1.57079632679489661923132]
+        distances:
+          robot_1: [0.5, 1.0]
+          robot_2: [0.5, 1.0]
+        grasp_angle:
+          robot_1: [-0.7853981633974483, 0.7853981633974483]
+          robot_2: [-0.7853981633974483, 0.7853981633974483]
+
+
+      workspace_vertices:
+        n_points: 4
+        p1: [-10, -10]
+        p2: [-10, 10]
+        p3: [10, 10]
+        p4: [10, -10]
+
+      main_object:
+        frame: "main_object"
+        vertices:
+          n_points: 4
+          p1: [-0.5, 0.5, 0.0]
+          p2: [0.5, 0.5, 0.0]
+          p3: [0.5, -0.5, 0.0]
+          p4: [-0.5, -0.5, 0.0]
+        grasping_frame:
+          - "grasp_1"
+          - "grasp_2"
+
+/centralized_planner_node:
+  ros__parameters:
+    world_frame: "/map"
