@@ -438,8 +438,9 @@ bool CVXSolver::update(const Eigen::VectorXd& sample, PathPtr& solution)
       {
         RCLCPP_DEBUG(node_->get_logger(), "CVXSolver::update() -> Good configuration in intersection found");
         new_node = std::make_shared<Node>(formation_configuration.head<3>());
-        std::vector<double> tmp_vec(formation_configuration.data(), formation_configuration.data() + formation_configuration.size());
-        map_node_to_config[new_node] = tmp_vec;
+//        std::vector<double> tmp_vec(formation_configuration.data(), formation_configuration.data() + formation_configuration.size());
+//        map_node_to_config_[new_node] = tmp_vec;
+        map_node_to_config_[new_node] = formation_configuration;
         ConnectionPtr conn;
         for(NodePtr& node : pc->getNodes())
         {
@@ -578,39 +579,24 @@ bool CVXSolver::getPolyhedronFromNode(const NodePtr& node, PolyhedronContainerPt
   return poly_ok;
 }
 
-std::map<std::string, std::vector<Eigen::Vector3d>> CVXSolver::getConfigFromPath(const PathPtr& path)
+std::map<std::string, std::vector<Eigen::Isometry3d>> CVXSolver::getConfigFromPath(const PathPtr& path)
 {
   std::vector<pathplan::NodePtr> path_nodes = path->getNodes();
+  std::map<std::string, std::vector<Eigen::Isometry3d>> path_poses;
+  Formation form(robot_loaded_,
+                 object_vertices_in_obj_,
+                 robot_vertices_,
+                 grasping_vertices_in_obj_,
+                 grasping_vertices_in_robot_);
 
-  using PathPosesVector = std::map<std::string, std::vector<Eigen::Vector3d>>;
-  PathPosesVector ret;
-  for (auto& [rname, poses] : ret)
+  for(auto& [gnode_path, config] : map_node_to_config_)
   {
-    poses.resize(path_nodes.size());
-  }
-
-  for(auto node_it = path_nodes.begin(); node_it!=path_nodes.end(); node_it++)
-  {
-    size_t idx = std::distance(path_nodes.begin(), node_it);
-    Eigen::Vector3d center_formation_t_in_map = Eigen::Vector3d({map_node_to_config[*node_it].at(0),
-                                                      map_node_to_config[*node_it].at(1),
-                                                      0});
-    Eigen::AngleAxisd center_formation_r_in_map = Eigen::AngleAxisd(map_node_to_config[*node_it].at(1), Eigen::Vector3d::UnitZ());
-
-    for(auto rname_it = robot_loaded_.begin(); rname_it!=robot_loaded_.end(); ++rname_it)
+    for(std::string& s : robot_loaded_)
     {
-      size_t rname_idx = std::distance(robot_loaded_.begin(), rname_it);
-      Eigen::Vector3d grasping_to_robot_in_robot = -(node_it->get()->getConfiguration()(dof_+rname_idx)) * Eigen::Vector3d::UnitX();
-      Eigen::AngleAxisd rotation_around_grasping_point = Eigen::AngleAxisd(node_it->get()->getConfiguration()(dof_+robot_loaded_.size()+idx),Eigen::Vector3d::UnitZ());
-
-      ret[*rname_it][idx] = center_formation_t_in_map + center_formation_r_in_map * (
-            grasping_vertices_in_obj_.col(rname_idx) + rotation_around_grasping_point * (
-              grasping_to_robot_in_robot
-              ));
+      path_poses[s].push_back(form.getPose(s, config));
     }
   }
-  return ret;
-
+  return path_poses;
 }
 
 TreeSolverPtr CVXSolver::clone(const MetricsPtr &metrics, const CollisionCheckerPtr &checker, const SamplerPtr &sampler)

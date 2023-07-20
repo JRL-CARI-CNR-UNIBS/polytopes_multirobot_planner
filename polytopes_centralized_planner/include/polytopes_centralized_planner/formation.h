@@ -18,6 +18,8 @@
 class Formation
 {
 private:
+  Eigen::Isometry3d computePose(const std::string& name, const Eigen::VectorXd& config) const;
+
 protected:
   unsigned int m_rnum;
   std::vector<std::string> m_rnames;
@@ -29,9 +31,11 @@ protected:
   std::vector<double> m_base_angles;
 
   Eigen::VectorXd m_actual_configuration;
-  std::map<std::string, Eigen::Isometry3d> m_robot_poses;
+//  std::map<std::string, Eigen::Isometry3d> m_robot_poses;
   bool is_configured {false};
+
 public:
+  Formation() {}
   Formation(const std::vector<std::string> rnames,
             const Eigen::Matrix3Xd& vertices_of_obj_in_obj                 ,
             const std::vector<Eigen::Matrix3Xd>& vertices_of_robot_in_robot,
@@ -48,12 +52,15 @@ public:
   {
     m_base_angles.resize(m_rnames.size());
     std::fill(m_base_angles.begin(), m_base_angles.end(), 0);
+    is_configured = true;
   }
+
   void setBaseOrientation(const std::vector<double> angles);
-  void computePoses(const std::string& name, const Eigen::VectorXd& config);
-  Eigen::Isometry3d getPose(const std::string& name);
-  Eigen::Vector3d getPointOnObject(Eigen::Vector3d& point_in_center_frame);
-  Eigen::Vector3d getPointOnBase(const std::string& name, const Eigen::Vector3d& point_in_base_frame);
+  Eigen::Isometry3d getPose(const std::string& name, const Eigen::VectorXd& config) const;
+  std::vector<Eigen::Vector3d> getPointsOnObject(const Eigen::VectorXd& config, const std::vector<Eigen::Vector3d>& point_in_center_frame) const;
+  std::vector<Eigen::Vector3d> getPointsOnObject(const Eigen::VectorXd& config, const Eigen::Matrix3Xd& point_in_center_frame) const;
+  std::vector<Eigen::Vector3d> getPointsOnBase(const std::string& name, const Eigen::VectorXd& config, const std::vector<Eigen::Vector3d>& point_in_base_frame) const;
+  std::vector<Eigen::Vector3d> getPointsOnBase(const std::string& name, const Eigen::VectorXd& config, const Eigen::Matrix3Xd& point_in_base_frame) const;
 };
 
 #endif // FORMATION_H

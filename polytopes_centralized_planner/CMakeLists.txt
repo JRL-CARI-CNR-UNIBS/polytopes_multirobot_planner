@@ -54,34 +54,9 @@ ament_target_dependencies(${PROJECT_NAME}
   tf2_eigen
   polytopes_centralized_planner_msgs
 )
-# target_link_libraries(${PROJECT_NAME} IRIS)
-# target_compile_features(${PROJECT_NAME} PUBLIC c_std_99 cxx_std_17)
 ament_export_targets(${PROJECT_NAME}Target HAS_LIBRARY_TARGET)
 
-
-# Test node: solver
-# add_executable(test_solver
-#   src/test/solver/test_solver.cpp
-#   src/${PROJECT_NAME}/solvers/cvx_solver.cpp
-#   src/${PROJECT_NAME}/optimization/formation_problem.cpp
-# )
-# target_include_directories(test_solver PUBLIC
-#   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-#   $<INSTALL_INTERFACE:include>)
-# ament_target_dependencies(test_solver 
-#   Eigen3
-#   IRIS
-#   ifopt
-#   graph_core
-#   rclcpp
-#   moveit_core
-#   geometry_msgs
-#   moveit_msgs
-#   tf2 
-#   tf2_ros
-#   )
-# target_compile_features(test_solver PUBLIC c_std_99 cxx_std_17)
-
+#################### centralized_planner_node ##############################
 add_executable(centralized_planner_node
   src/centralized_planner_node.cpp
 )
@@ -99,16 +74,13 @@ ament_target_dependencies(centralized_planner_node
   rclcpp_components
   tf2
   tf2_eigen
-  # IRIS
+  IRIS
   )
 # Necessario perché ament_target_dependencies() non funziona con target definiti nello stesso CMakeLists
 target_link_libraries(centralized_planner_node
   ${PROJECT_NAME}
 )
-# target_compile_definitions(centralized_planner_node
-#   # PRIVATE "ACTION_TUTORIALS_CPP_BUILDING_DLL") # ??
-#   PRIVATE "CENTRALIZED_PLANNER_NODE_BUILDING_DLL")
-rclcpp_components_register_node(centralized_planner_node PLUGIN "nav2_msgs::action::NavigateThroughPoses" EXECUTABLE centralized_planner_node_exec)
+############################################################################
 
 # Python package install
 ament_python_install_package(${PROJECT_NAME})

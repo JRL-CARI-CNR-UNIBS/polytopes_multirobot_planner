@@ -5,71 +5,82 @@ void Formation::setBaseOrientation(const std::vector<double> angles)
   m_base_angles = angles;
 }
 
-void Formation::computePoses(const std::string& name, const Eigen::VectorXd& config)
+Eigen::Isometry3d Formation::computePose(const std::string& name, const Eigen::VectorXd& config) const
 {
   Eigen::Vector3d t({config(0), config(1), 0});
   Eigen::AngleAxisd Rt(config(2), Eigen::Vector3d::UnitZ());
+  unsigned int idx = std::distance(m_rnames.begin(), std::find(m_rnames.begin(), m_rnames.end(), name));
   std::vector<Eigen::Vector3d> robot_to_grasp_in_robot(m_rnum);
-  for (size_t idx = 0; idx < robot_to_grasp_in_robot.size(); ++idx){
-     robot_to_grasp_in_robot[idx] = (Eigen::AngleAxisd(m_base_angles[idx],
-                                                       Eigen::Vector3d::UnitZ())
-                                     * Eigen::Vector3d::UnitX()
-                                     );
-     robot_to_grasp_in_robot[idx] *= -config(3 + idx);
-  }
+  robot_to_grasp_in_robot[idx] = (Eigen::AngleAxisd(m_base_angles[idx],
+                                                    Eigen::Vector3d::UnitZ())
+                                  * Eigen::Vector3d::UnitX()
+                                  );
+  robot_to_grasp_in_robot[idx] *= -config(3 + idx);
+  Eigen::AngleAxisd rotation_on_grasp( config(3+m_rnum+idx), Eigen::Vector3d::UnitZ() );
+  Eigen::Isometry3d robot_pose;
+  robot_pose.translation() = t + Rt *
+      (
+        m_grasping_points_in_obj.col(idx)
+        + rotation_on_grasp
+          * (-robot_to_grasp_in_robot[idx])
+      );
+  robot_pose.linear() = (Rt
+      * Eigen::AngleAxisd(std::atan2(m_grasping_points_in_obj.col(idx)(0),
+                                     m_grasping_points_in_obj.col(idx)(1)),
+                          Eigen::Vector3d::UnitZ())
+      * rotation_on_grasp
+      * Eigen::AngleAxisd(m_base_angles[idx], Eigen::Vector3d::UnitZ())
+      ).toRotationMatrix();
 
-  for(size_t idx = 0; idx < m_rnum; ++idx)
-  {
-    Eigen::AngleAxisd rotation_on_grasp( config(3+m_rnum+idx), Eigen::Vector3d::UnitZ() );
-    m_robot_poses[m_rnames[idx]].translation() = t + Rt *
-        (
-          m_grasping_points_in_obj.col(idx)
-          + rotation_on_grasp
-            * (-robot_to_grasp_in_robot[idx])
-        );
-    m_robot_poses[m_rnames[idx]].linear() = (Rt
-        * Eigen::AngleAxisd(std::atan2(m_grasping_points_in_obj.col(idx)(0),
-                                       m_grasping_points_in_obj.col(idx)(1)),
-                            Eigen::Vector3d::UnitZ())
-        * rotation_on_grasp
-        * Eigen::AngleAxisd(m_base_angles[idx], Eigen::Vector3d::UnitZ())
-        ).toRotationMatrix();
-  }
+  return robot_pose;
 }
 
-Eigen::Isometry3d Formation::getPose(const std::string& name)
+Eigen::Isometry3d Formation::getPose(const std::string& name, const Eigen::VectorXd& config) const
 {
-  if(!is_configured)
-  {
-    return m_robot_poses[name];
-  }
-  else
-  {
-    std::cerr << "Cannot get poses. Poses not computed. Returning identity isometry" << std::endl;
-    return Eigen::Isometry3d::Identity();
-  }
+  return computePose(name, config);
 }
 
-Eigen::Vector3d Formation::getPointOnBase(const std::string& name, const Eigen::Vector3d& point_in_base_frame)
+std::vector<Eigen::Vector3d> Formation::getPointsOnBase(const std::string& name, const Eigen::VectorXd& config, const std::vector<Eigen::Vector3d>& point_in_base_frame) const
 {
-  if(!is_configured)
-    return m_robot_poses[name] * point_in_base_frame;
-  else
-  {
-    std::cerr << "Cannot get point position. Poses not computed. Returning zero vector" << std::endl;
-    return Eigen::Vector3d::Zero();
-  }
+    std::vector<Eigen::Vector3d> points_in_map(point_in_base_frame.size());
+    Eigen::Isometry3d robot_frame_in_map = computePose(name, config);
+    std::transform(point_in_base_frame.begin(), point_in_base_frame.end(), points_in_map.begin(),
+                   [robot_frame_in_map](const Eigen::Vector3d& v){
+      return  robot_frame_in_map * v;
+    });
+    return points_in_map;
 }
 
-Eigen::Vector3d Formation::getPointOnObject(Eigen::Vector3d& point_in_center_frame)
+std::vector<Eigen::Vector3d> Formation::getPointsOnBase(const std::string& name, const Eigen::VectorXd& config, const Eigen::Matrix3Xd& point_in_base_frame) const
 {
-  if(!is_configured)
-    return Eigen::Vector3d({m_actual_configuration(0),m_actual_configuration(1),0})
-        + Eigen::AngleAxisd(m_actual_configuration(2), Eigen::Vector3d::UnitZ())
-          * point_in_center_frame;
-  else
+  std::vector<Eigen::Vector3d> p;
+  p.resize(point_in_base_frame.cols());
+  for(size_t idx = 0; idx < p.size(); ++idx)
   {
-    std::cerr << "Cannot get point position. Poses not computed. Returning zero vector" << std::endl;
-    return Eigen::Vector3d::Zero();
+    p[idx] = point_in_base_frame.col(idx);
   }
+  return getPointsOnBase(name, config, p);
+}
+
+std::vector<Eigen::Vector3d> Formation::getPointsOnObject(const Eigen::VectorXd& config, const std::vector<Eigen::Vector3d>& point_in_center_frame) const
+{
+
+  std::vector<Eigen::Vector3d> points_in_map(point_in_center_frame.size());
+  std::transform(point_in_center_frame.begin(), point_in_center_frame.end(), points_in_map.begin(),
+                 [config](const Eigen::Vector3d& v){
+    return Eigen::Vector3d({config(0),config(1),0})
+        + Eigen::AngleAxisd(config(2), Eigen::Vector3d::UnitZ()) * v;
+  });
+  return points_in_map;
+}
+
+std::vector<Eigen::Vector3d> Formation::getPointsOnObject(const Eigen::VectorXd& config, const Eigen::Matrix3Xd& point_in_center_frame) const
+{
+  std::vector<Eigen::Vector3d> p;
+  p.resize(point_in_center_frame.cols());
+  for(size_t idx = 0; idx < p.size(); ++idx)
+  {
+    p[idx] = point_in_center_frame.col(idx);
+  }
+  return getPointsOnObject(config, p);
 }

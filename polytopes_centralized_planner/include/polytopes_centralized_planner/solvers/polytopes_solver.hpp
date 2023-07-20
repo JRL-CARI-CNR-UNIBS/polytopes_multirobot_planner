@@ -62,7 +62,8 @@ protected:
   std::vector<std::string> base_names_;
 
 //  std::map<NodePtr, NodePtr> reduced_to_full_map;
-  std::unordered_map<NodePtr, std::vector<double>> map_node_to_config;
+//  std::unordered_map<NodePtr, std::vector<double>> map_node_to_config_;
+  std::unordered_map<NodePtr, Eigen::VectorXd> map_node_to_config_;
 
 //  planning_scene::PlanningScenePtr planning_scene_;
   std::shared_ptr<rclcpp::Node> node_;
@@ -111,26 +112,26 @@ public:
 
   // Utils
   bool configurationComputeOnly(const Eigen::VectorXd& sample, Eigen::VectorXd& result);
-  const std::vector<double> getFormationParams(const NodePtr& node)
+  Eigen::VectorXd getFormationParams(const NodePtr& node) const
   {
-    return map_node_to_config[node];
+    return map_node_to_config_.at(node);
   }
-  std::multimap<ConnectionPtr, PolyhedronContainerPtr> getConnectionPolytopesMap()
+  std::multimap<ConnectionPtr, PolyhedronContainerPtr> getConnectionPolytopesMap() const
   {
     return map_connection_to_poly_;
   }
 
-  std::vector<std::string> getRobots()
+  std::vector<std::string> getRobots() const
   {
     return robot_loaded_;
   }
 
-  std::vector<std::string> getRobotBases()
+  std::vector<std::string> getRobotBases() const
   {
     return base_names_;
   }
 
-  std::map<std::string, std::vector<Eigen::Vector3d>> getConfigFromPath(const PathPtr& path);
+  std::map<std::string, std::vector<Eigen::Isometry3d>> getConfigFromPath(const PathPtr& path);
 
 private:
   CVXSolver() = delete;

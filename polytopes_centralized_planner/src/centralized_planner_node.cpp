@@ -69,12 +69,12 @@ public:
   void plan(const std::shared_ptr<nav_msgs::srv::GetPlan::Request> req,
             std::shared_ptr<nav_msgs::srv::GetPlan::Response> res)
   {
+    this->get_parameter_or(world_frame_param_, world_frame_, default_world_frame_);
     if(req->goal.header.frame_id != world_frame_)
     {
       RCLCPP_ERROR_STREAM(this->get_logger(), "goal is not refered to the world frame specified.");
       return;
     }
-    this->get_parameter_or(world_frame_param_, world_frame_, default_world_frame_);
     solver->config(this->shared_from_this());
     std::vector<std::string> bases = solver->getRobotBases();
     std::vector<Eigen::Isometry3d> eigen_tf_from_map_to_bases;
@@ -95,15 +95,42 @@ public:
       }
     }
 
-    Eigen::Vector3d formation_center;
-    Eigen::Vector3d zero = Eigen::Vector3d::Zero();
-    formation_center = std::accumulate(eigen_tf_from_map_to_bases.begin(),
-                                       eigen_tf_from_map_to_bases.end(),
-                                       zero,
-                                       [](const Eigen::Vector3d& a, const Eigen::Isometry3d& b){
-      return a + b.translation().matrix();
+//    Eigen::Vector3d formation_center;
+//    Eigen::Vector3d zero = Eigen::Vector3d::Zero();
+//    formation_center = std::accumulate(eigen_tf_from_map_to_bases.begin(),
+//                                       eigen_tf_from_map_to_bases.end(),
+//                                       zero,
+//                                       [](const Eigen::Vector3d& a, const Eigen::Isometry3d& b){
+//      return a + b.translation().matrix();
+//    });
+//    solver->addStart(std::make_shared<pathplan::Node>(formation_center/bases.size()));
+
+    /*
+     * get_poses_from_amcl
+     * get_initial_config_from_somewhere
+     * compute_poses
+     */
+    Eigen::Isometry3d formation_center;
+    std::vector<Eigen::Isometry3d> base_poses;
+    std::transform(solver->getRobotBases().begin(),
+                   solver->getRobotBases().end(),
+                   base_poses.begin(),
+                   [this](const std::string& s){
+      if(tfBuffer_->canTransform(s, world_frame_, this->get_clock()->now()))
+      {
+        return tf2::transformToEigen(
+              tfBuffer_->lookupTransform(s, world_frame_, this->get_clock()->now())
+              );
+      }
+      else
+      {
+        RCLCPP_ERROR(this->get_logger(), "Transformation from %s to %s not found! Shutting down...",
+                     world_frame_.c_str(),
+                     s.c_str());
+        rclcpp::shutdown();
+        return Eigen::Isometry3d::Identity();
+      }
     });
-    solver->addStart(std::make_shared<pathplan::Node>(formation_center/bases.size()));
 
     Eigen::Isometry3d goal_pose;
     tf2::fromMsg(req->goal.pose, goal_pose);
@@ -116,7 +143,7 @@ public:
     pathplan::PathPtr result_path;
     while(solver->update(result_path)); // TODO: check risultato
     std::vector<Eigen::VectorXd> result_path_waypoints = result_path->getWaypoints();
-    std::map<std::string, std::vector<Eigen::Vector3d>>
+    std::map<std::string, std::vector<Eigen::Isometry3d>>
         path_of_configurations = solver->getConfigFromPath(result_path);
 
     std::vector<std::string> robot_names = solver->getRobots();
@@ -142,17 +169,23 @@ public:
         std::bind(&CentralizedPlanner::result_callback, this, std::placeholders::_1);
     }
 
+    // for each robot
     for(size_t idx=0; idx < nav_poses_clnt_vector.size(); ++idx)
     {
       NavigateThroughPoses::Goal goal;
-      // TODO: DA CAMBIARE: forza la posa con lo stesso orientamento dell'oggetto
+//      for(size_t jdx = 0; jdx < solver->getSolution()->getWaypoints().size(); ++jdx)
+//      {
+//        goal.poses[jdx].header.frame_id = "map";
+//        goal.poses[jdx].pose.orientation.z = std::sin(result_path_waypoints[jdx](2)*0.5);
+//        goal.poses[jdx].pose.orientation.w = std::cos(result_path_waypoints[jdx](2)*0.5);
+//        goal.poses[jdx].pose = tf2::toMsg(path_of_configurations[robot_names[idx]][jdx]);
+//      }
       for(size_t jdx = 0; jdx < solver->getSolution()->getWaypoints().size(); ++jdx)
       {
-        goal.poses[jdx].header.frame_id = "map";
-        goal.poses[jdx].pose.orientation.z = std::sin(result_path_waypoints[jdx](2)*0.5);
-        goal.poses[jdx].pose.orientation.w = std::cos(result_path_waypoints[jdx](2)*0.5);
-        goal.poses[jdx].pose.position = Eigen::toMsg(path_of_configurations[robot_names[idx]][jdx]);
+        goal.poses[jdx].header.frame_id = world_frame_;
+        goal.poses[jdx].pose = tf2::toMsg(path_of_configurations[robot_names[idx]][jdx]);
       }
+      RCLCPP_INFO(this->get_logger(), "Calling action: NavigateThroughPoses on %s", robot_names[idx].c_str());
       this->nav_poses_clnt_vector[idx]->async_send_goal(goal, send_goal_options_vector[idx]);
     }
   }
@@ -194,9 +227,12 @@ public:
 
 };
 
-RCLCPP_COMPONENTS_REGISTER_NODE(CentralizedPlanner);
+//RCLCPP_COMPONENTS_REGISTER_NODE(CentralizedPlanner);
 
-int main(void)
+int main(int argc, char** argv)
 {
-
+  rclcpp::init(argc, argv);
+  rclcpp::spin(std::make_shared<CentralizedPlanner>());
+  rclcpp::shutdown();
+  return 0;
 }

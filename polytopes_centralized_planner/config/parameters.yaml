@@ -2,13 +2,13 @@
   ros__parameters:
     polytope_motion_planning:
       robots:
-        robot_to_load:
+        robot_to_load: # etichetta parametri di ogni robot
           - "robot_1"
           - "robot_2"
         base_names:
           - "sweepee_1/base_footprint"
           - "sweepee_2/base_footprint"
-        vertices:
+        vertices:       # Vertici robot
           robot_1:
             n_points: 4
             p1: [-0.5, -0.25, 0.0]
