@@ -63,6 +63,9 @@ public:
          std::bind(&CentralizedPlanner::plan, this, _1, _2));
     tfBuffer_ = std::make_shared<tf2_ros::Buffer>(this->get_clock());
     tfListener_ = std::make_shared<tf2_ros::TransformListener>(*tfBuffer_);
+
+    // Parameters
+    this->declare_parameter("allow_undeclared_parameters",true);
   }
 
   // TODO: Change srv
@@ -232,7 +235,9 @@ public:
 int main(int argc, char** argv)
 {
   rclcpp::init(argc, argv);
-  rclcpp::spin(std::make_shared<CentralizedPlanner>());
+  rclcpp::NodeOptions opt;
+  opt.allow_undeclared_parameters(true);
+  rclcpp::spin(std::make_shared<CentralizedPlanner>(opt));
   rclcpp::shutdown();
   return 0;
 }

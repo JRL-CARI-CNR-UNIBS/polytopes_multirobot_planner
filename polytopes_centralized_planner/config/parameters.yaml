@@ -1,5 +1,6 @@
-/centralized_planner_node:
+centralized_planner_node:
   ros__parameters:
+    world_frame: "/map"
     polytope_motion_planning:
       robots:
         robot_to_load: # etichetta parametri di ogni robot
@@ -24,8 +25,8 @@
 
       bounds:
         pose:
-          x: [0, 5]
-          y: [0, 5]
+          x: [0.0, 5.0]
+          y: [0.0, 5.0]
           theta: [-1.57079632679489661923132, 1.57079632679489661923132]
         distances:
           robot_1: [0.5, 1.0]
@@ -37,10 +38,10 @@
 
       workspace_vertices:
         n_points: 4
-        p1: [-10, -10]
-        p2: [-10, 10]
-        p3: [10, 10]
-        p4: [10, -10]
+        p1: [-10.0, -10.0]
+        p2: [-10.0, 10.0]
+        p3: [10.0, 10.0]
+        p4: [10.0, -10.0]
 
       main_object:
         frame: "main_object"
@@ -53,7 +54,3 @@
         grasping_frame:
           - "grasp_1"
           - "grasp_2"
-
-/centralized_planner_node:
-  ros__parameters:
-    world_frame: "/map"

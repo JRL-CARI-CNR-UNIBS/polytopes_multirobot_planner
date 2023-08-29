@@ -91,7 +91,7 @@ ament_python_install_package(${PROJECT_NAME})
 # installa directory di include
 install(DIRECTORY include/${PROJECT_NAME}/
 DESTINATION include
-FILES_MATCHING PATTERN "*.h"
+# FILES_MATCHING PATTERN "*.h"
 PATTERN ".svn" EXCLUDE
 )
 
